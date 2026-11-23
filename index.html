@@ -30,10 +30,11 @@ td small{display:block;color:var(--mu)}.n{color:var(--mu);font-size:12px;margin-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-let D={C:[],S:[],A:[],R:[]},W=30,L='Campaign',sk='good',sd=-1,sel=null,today=Date.now(),LG={},CP={},PII={},cur=[],F={},PW=localStorage.getItem('pw')||'';
+let D={C:[],S:[],A:[],R:[]},W=30,L='Campaign',sk='good',sd=-1,sel=null,today=Date.now(),LG={},CP={},PII={},cur=[],F={},WS=null,PW=localStorage.getItem('pw')||'';
 const HK=['Untagged','Price-led','Doctor-led','Before/After','Offer','Educational','Testimonial','Other'],FM=['Untagged','Video','Image','Carousel'],PR=['Untagged','Price shown','No price'],dnum=t=>Math.floor((t+19800000)/864e5);
 const RK={O:0,N:0,I:1,C:2},sh=id=>(parseInt(id.slice(-1))||0)%10,G=c=>RK[c]>0,$=i=>document.getElementById(i);
 const cols=[['name','Name'],['leads','Leads'],['i','Interested'],['c','Converted'],['good','Good'],['pct','Good %'],['l2o','L2O %']];
+const TK=r=>D.C[r[1]]+'|'+D.S[r[2]]+'|'+D.A[r[3]];
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const note=t=>$('nt').textContent=t;
 function mk(id,arr,f){const e=$(id);arr.forEach(v=>{const b=document.createElement('button');b.textContent=(id=='wb'?'T-':'')+v;b.onclick=()=>{f(v);[...e.children].forEach(x=>x.classList.toggle('on',x===b));draw()};e.appendChild(b);if(v==(id=='wb'?30:'Campaign'))b.classList.add('on')})}
@@ -45,11 +46,16 @@ async function api(m,b){const r=await fetch('/api/data',{method:m,headers:{'x-pa
 async function load(){const j=await api('GET');D={C:j.C||[],S:j.S||[],A:j.A||[],R:j.R||[]};LG=j.ledger||{};CP=j.copy||{};const k=j.updated?Math.max(0,dnum(Date.now())-dnum(j.updated)):0;D.R.forEach(r=>{r[0]+=k;const p=PII[r[11]];if(p){r[5]=p[0];r[6]=p[1]}});applyLedger(D.R);today=Date.now();$('gt').style.display='none';note(j.updated?'Shared data last uploaded '+new Date(j.updated).toLocaleString('en-GB'):'No data yet. Upload the two files above.');draw()}
 function gate(){$('gt').style.display='flex'}
 function login(){PW=$('pw').value;localStorage.setItem('pw',PW);load().catch(e=>note(e.message))}
-async function saveCopy(){const k=cur.find(o=>o.key==sel).name,v={text:$('cpt').value,hook:$('cph').value,format:$('cpf').value,price:$('cpp').value};try{await api('POST',{copy:{k,v}});CP[k]=v;note('Ad copy saved for the whole team.');draw()}catch(e){note(e.message)}}
+async function saveCopy(){const k=sel,v={text:$('cpt').value,hook:$('cph').value,format:$('cpf').value,price:$('cpp').value};try{await api('POST',{copy:{k,v}});CP[k]=v;note('Ad copy saved for the whole team.');draw()}catch(e){note(e.message)}}
 function works(){let o='<div class="s"><b>What works (T-'+W+')</b>: leads grouped by the tags set on each ad. Tag ads by opening them in the Ad view.</div><div class="wg">';
-[['hook','Hook'],['format','Format'],['price','Price in ad']].forEach(([d,t])=>{const m={};D.R.forEach(r=>{if(r[0]>=W)return;const v=(CP[D.A[r[3]]]||{})[d]||'Untagged',x=m[v]||(m[v]={n:0,g:0,c:0});x.n++;if(G(r[4]))x.g++;if(r[4]=='C')x.c++});
-o+=`<div><table style="min-width:0"><tr><th>${t}</th><th>Leads</th><th>Good %</th><th>L2O %</th></tr>`+Object.entries(m).sort((a,b)=>b[1].n-a[1].n).map(([k,x])=>`<tr><td>${k}</td><td>${x.n}</td><td>${(x.g/x.n*100).toFixed(1)}%</td><td>${(x.c/x.n*100).toFixed(1)}%</td></tr>`).join('')+'</table></div>'});
-$('wk').innerHTML=o+'</div>'}
+[['hook','Hook'],['format','Format'],['price','Price in ad']].forEach(([d,t])=>{const m={};D.R.forEach(r=>{if(r[0]>=W)return;const v=(CP[TK(r)]||{})[d]||'Untagged',x=m[v]||(m[v]={n:0,g:0,c:0});x.n++;if(G(r[4]))x.g++;if(r[4]=='C')x.c++});
+o+=`<div><table style="min-width:0"><tr><th>${t}</th><th>Leads</th><th>Good %</th><th>L2O %</th></tr>`+Object.entries(m).sort((a,b)=>b[1].n-a[1].n).map(([k,x])=>`<tr style="cursor:pointer" class="${WS&&WS.d==d&&WS.v==k?'sel':''}" onclick="pickTag('${d}','${k}')"><td>${k}</td><td>${x.n}</td><td>${(x.g/x.n*100).toFixed(1)}%</td><td>${(x.c/x.n*100).toFixed(1)}%</td></tr>`).join('')+'</table></div>'});
+$('wk').innerHTML=o+'</div>'+tagPanel()}
+function pickTag(d,v){WS=WS&&WS.d==d&&WS.v==v?null:{d,v};draw()}
+function tagPanel(){if(!WS)return'';const lab={hook:'Hook',format:'Format',price:'Price in ad'}[WS.d],m={};
+D.R.forEach(r=>{if(r[0]>=W)return;if(((CP[TK(r)]||{})[WS.d]||'Untagged')!=WS.v)return;const k=TK(r),x=m[k]||(m[k]={ca:D.C[r[1]],se:D.S[r[2]],ad:D.A[r[3]],n:0,i:0,c:0});x.n++;if(r[4]=='I')x.i++;if(r[4]=='C')x.c++});
+const a=Object.values(m).sort((x,y)=>y.n-x.n),tot=a.reduce((t,x)=>(t.n+=x.n,t.g+=x.i+x.c,t.c+=x.c,t),{n:0,g:0,c:0});
+return`<div class="dp"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(lab)}: ${esc(WS.v)} · ${a.length} ad${a.length==1?'':'s'} · ${tot.n} leads · T-${W}</b><button onclick="WS=null;draw()">Close</button></div><div class="w"><table style="min-width:560px"><tr><th>Ad</th><th>Ad set</th><th>Campaign</th><th>Leads</th><th>Interested</th><th>Converted</th><th>Good %</th><th>L2O %</th></tr>`+a.map(x=>`<tr><td>${esc(x.ad)}</td><td>${esc(x.se)}</td><td>${esc(x.ca)}</td><td>${x.n}</td><td>${x.i}</td><td>${x.c}</td><td>${((x.i+x.c)/x.n*100).toFixed(1)}%</td><td>${(x.c/x.n*100).toFixed(1)}%</td></tr>`).join('')+'</table></div></div>'}
 async function rd(f){const w=XLSX.read(await f.arrayBuffer(),{type:'array'});return w.SheetNames.flatMap(s=>XLSX.utils.sheet_to_json(w.Sheets[s],{defval:''}))}
 async function up(k,f){F[k]=f;if(F.m&&F.c)await run()}
 async function run(){note('Processing…');try{
@@ -94,7 +100,7 @@ a.map((o,ix)=>{const ok=o.leads>=mn&&el.length>2,bg=ok?(o.pct>=hi?'var(--g)':o.p
 return `<tr class="${o.key==sel?'sel':''}" style="cursor:pointer" onclick="pick(${ix})"><td>${esc(o.name)}<small>${esc(o.sub)}</small></td><td>${o.leads}</td><td>${o.i}</td><td>${o.c}</td><td>${o.good}</td><td style="background:${bg}">${o.pct.toFixed(1)}%${ok?'':' *'}</td><td>${o.l2o.toFixed(1)}%</td></tr>`}).join('');
 const sr=sel&&cur.find(o=>o.key==sel),dt=$('dt');charts();works();
 if(!sr){dt.innerHTML='';return}
-const cp=sr?CP[sr.name]||{}:{},op=(a,v)=>a.map(x=>`<option${x==v?' selected':''}>${x}</option>`).join(''),ed=L=='Ad'?`<div style="margin:8px 0"><b>Ad copy and tags</b><textarea id="cpt" rows="4" style="width:100%;box-sizing:border-box;margin:6px 0;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px">${esc(cp.text||'')}</textarea><select id="cph">${op(HK,cp.hook)}</select> <select id="cpf">${op(FM,cp.format)}</select> <select id="cpp">${op(PR,cp.price)}</select> <button onclick="saveCopy()">Save for team</button></div>`:'';
+const cp=sr?CP[sr.key]||{}:{},op=(a,v)=>a.map(x=>`<option${x==v?' selected':''}>${x}</option>`).join(''),ed=L=='Ad'?`<div style="margin:8px 0"><b>Ad copy and tags</b><textarea id="cpt" rows="4" style="width:100%;box-sizing:border-box;margin:6px 0;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px">${esc(cp.text||'')}</textarea><select id="cph">${op(HK,cp.hook)}</select> <select id="cpf">${op(FM,cp.format)}</select> <select id="cpp">${op(PR,cp.price)}</select> <button onclick="saveCopy()">Save for team</button></div>`:'';
 const ls=D.R.filter(r=>r[0]<W&&KF(r)==sel&&G(r[4])).sort((x,y)=>x[0]-y[0]);
 dt.innerHTML=`<div class="dp"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(sr.name)} · ${ls.length} good leads (Interested + Converted) · T-${W}</b><button onclick="sel=null;draw()">Close</button></div>${ed}<div class="w"><table style="min-width:560px"><tr><th>Date</th><th>Name</th><th>Phone</th><th>CRM status</th><th>Sub-status</th><th>Owner</th></tr>`+ls.map(r=>`<tr><td>${r[7]}</td><td>${esc(r[5])||'—'}</td><td>${r[6]||'—'}</td><td style="background:var(--g)">${r[8]}${G(r[12])?'':' (frozen good)'}</td><td>${esc(r[9]).replace(/_/g,' ')}</td><td>${esc(r[10])}</td></tr>`).join('')+`</table></div></div>`}
 draw();
