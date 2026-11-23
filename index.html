@@ -31,7 +31,7 @@ td small{display:block;color:var(--mu)}.n{color:var(--mu);font-size:12px;margin-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 let D={C:[],S:[],A:[],R:[]},W=30,L='Campaign',sk='good',sd=-1,sel=null,today=Date.now(),LG={},CP={},PII={},cur=[],F={},WS=null,PW=localStorage.getItem('pw')||'';
-const HK=['Untagged','Price-led','Doctor-led','Before/After','Offer','Educational','Testimonial','Other'],FM=['Untagged','Video','Image','Carousel'],PR=['Untagged','Price shown','No price'],dnum=t=>Math.floor((t+19800000)/864e5);
+const HK=['Untagged','Price-led','Doctor-led','Before/After','Offer','Educational','Testimonial','Problem-aware','Other'],FM=['Untagged','Video','Image','Carousel'],PR=['Untagged','Price shown','No price'],dnum=t=>Math.floor((t+19800000)/864e5);
 const RK={O:0,N:0,I:1,C:2},sh=id=>(parseInt(id.slice(-1))||0)%10,G=c=>RK[c]>0,$=i=>document.getElementById(i);
 const cols=[['name','Name'],['leads','Leads'],['i','Interested'],['c','Converted'],['good','Good'],['pct','Good %'],['l2o','L2O %']];
 const TK=r=>D.C[r[1]]+'|'+D.S[r[2]]+'|'+D.A[r[3]];
