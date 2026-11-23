@@ -1,0 +1,102 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Meta Performance Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mu:#6b6b6b;--bd:#e3e3e3;--ca:#f6f6f4;--ac:#0f6e56;--g:#d6efe4;--r:#f8dcdc;--y:#fbefc9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#16181a;--fg:#ececec;--mu:#9a9a9a;--bd:#33373a;--ca:#202326;--ac:#5dcaa5;--g:#14392d;--r:#4a2222;--y:#4a3d14;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px system-ui,sans-serif;padding:16px}
+h1{font-size:20px;margin:0 0 4px}.s{color:var(--mu);font-size:12px;margin-bottom:14px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+button,input{font:inherit;color:var(--fg);background:var(--ca);border:1px solid var(--bd);border-radius:8px;padding:6px 12px}
+button.on{background:var(--ac);color:var(--bg);border-color:var(--ac)}input{width:70px}
+.k{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px}
+.k div{background:var(--ca);border-radius:10px;padding:10px}.k b{display:block;font-size:20px}.k span{color:var(--mu);font-size:12px}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}
+th{cursor:pointer;color:var(--mu);font-weight:500;position:sticky;top:0;background:var(--bg)}th:first-child,td:first-child{text-align:left;white-space:normal;max-width:340px}
+td small{display:block;color:var(--mu)}.n{color:var(--mu);font-size:12px;margin-top:12px}
+.dp{background:var(--ca);border-radius:10px;padding:10px;margin-bottom:14px}.dp th{position:static;background:none}tr.sel td{font-weight:600}td:nth-child(2),td:nth-child(3){}.dp td:first-child,.dp th:first-child{max-width:none}.dp td,.dp th{text-align:left}
+.up{background:var(--ca);border-radius:10px;padding:10px;margin-bottom:12px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px}.up input{width:auto;max-width:230px}.ch{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px;margin-bottom:14px}.ch div{height:240px;position:relative}
+.wg{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:14px}textarea{font:inherit}
+</style></head><body>
+<h1>Meta performance: good leads</h1>
+<div class="s" id="sub"></div>
+<div class="up" id="gt" style="display:none">Team password <input id="pw" type="password" onkeydown="if(event.key=='Enter')login()"><button onclick="login()">Open</button></div>
+<div class="up"><label>Meta live sheet (.xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('m',this.files[0])"></label><label>Lead dump (.csv / .xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('c',this.files[0])"></label><span id="nt"></span></div>
+<div class="bar"><span id="wb"></span><span id="lb"></span><label>Min leads <input id="mn" type="number" value="10" min="0"></label><input id="q" placeholder="Search" style="width:140px"></div>
+<div class="k" id="k"></div>
+<div class="s" id="sc"></div><div class="n" style="margin:0 0 10px"><b>How to read these charts.</b> <b>Good lead % trend</b> shows whether the leads coming in are getting better or worse (use it to decide which campaigns or ads to scale or pause). <b>L2O % trend</b> shows how many leads actually turn into orders. Each line is a trailing window: the point on 15 Nov for T-7 covers leads from 9 to 15 Nov. <span style="color:#1d9e75">■</span> T-7 reacts fast but is noisy, <span style="color:#378add">■</span> T-14 is the middle view, <span style="color:#d85a30">■</span> T-30 is the smoothest and most reliable. Click a legend item to hide or show that line. Gaps mean no leads in that window. The last few days are always understated because those leads haven't matured yet.</div><div class="ch"><div><canvas id="c1"></canvas></div><div><canvas id="c2"></canvas></div></div>
+<div id="wk"></div><div id="dt"></div><div class="w"><table id="t"></table></div>
+<div class="n">Good lead = Interested or Converted, frozen: once a lead has been seen as Interested or Converted in any upload it stays good, even if the CRM later moves it to Lost or Follow-up. L2O = Converted ÷ Leads. Click any row to see its good leads and to scope the charts to it. Charts show, for each day, the trailing T-7 / T-14 / T-30 window ending that day, grouped by lead-form date; recent points are immature. Green/red on Good % = top/bottom third among rows meeting min leads. * = below min leads. No spend data, so no cost metrics. Uploads are read in your browser and shared with the whole team. Shared storage holds lead IDs, statuses, ad copy and tags only. Names and phone numbers are never stored, so they appear only in the session that uploaded the files.</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+let D={C:[],S:[],A:[],R:[]},W=30,L='Campaign',sk='good',sd=-1,sel=null,today=Date.now(),LG={},CP={},PII={},cur=[],F={},PW=localStorage.getItem('pw')||'';
+const HK=['Untagged','Price-led','Doctor-led','Before/After','Offer','Educational','Testimonial','Other'],FM=['Untagged','Video','Image','Carousel'],PR=['Untagged','Price shown','No price'],dnum=t=>Math.floor((t+19800000)/864e5);
+const RK={O:0,N:0,I:1,C:2},sh=id=>(parseInt(id.slice(-1))||0)%10,G=c=>RK[c]>0,$=i=>document.getElementById(i);
+const cols=[['name','Name'],['leads','Leads'],['i','Interested'],['c','Converted'],['good','Good'],['pct','Good %'],['l2o','L2O %']];
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const note=t=>$('nt').textContent=t;
+function mk(id,arr,f){const e=$(id);arr.forEach(v=>{const b=document.createElement('button');b.textContent=(id=='wb'?'T-':'')+v;b.onclick=()=>{f(v);[...e.children].forEach(x=>x.classList.toggle('on',x===b));draw()};e.appendChild(b);if(v==(id=='wb'?30:'Campaign'))b.classList.add('on')})}
+mk('wb',[7,14,30],v=>W=v);mk('lb',['Campaign','Ad set','Ad'],v=>{L=v;sel=null});
+['mn','q'].forEach(i=>$(i).oninput=draw);
+const KF=r=>{const ca=D.C[r[1]],se=D.S[r[2]],ad=D.A[r[3]];return L=='Campaign'?ca:L=='Ad set'?ca+'|'+se:ca+'|'+se+'|'+ad};
+function applyLedger(R){let n=0;R.forEach(r=>{const k=r[11],c=r[12],p=LG[k];let b=c;if(p&&RK[p]>=RK[c])b=p;if(G(b)&&LG[k]!==b){LG[k]=b;n++}r[4]=G(b)?b:c});return n}
+async function api(m,b){const r=await fetch('/api/data',{method:m,headers:{'x-pass':PW,'content-type':'application/json'},body:b?JSON.stringify(b):undefined});if(r.status==401){PW='';localStorage.removeItem('pw');gate();throw new Error('Wrong password')}if(!r.ok)throw new Error('Server error '+r.status);return r.json()}
+async function load(){const j=await api('GET');D={C:j.C||[],S:j.S||[],A:j.A||[],R:j.R||[]};LG=j.ledger||{};CP=j.copy||{};const k=j.updated?Math.max(0,dnum(Date.now())-dnum(j.updated)):0;D.R.forEach(r=>{r[0]+=k;const p=PII[r[11]];if(p){r[5]=p[0];r[6]=p[1]}});applyLedger(D.R);today=Date.now();$('gt').style.display='none';note(j.updated?'Shared data last uploaded '+new Date(j.updated).toLocaleString('en-GB'):'No data yet. Upload the two files above.');draw()}
+function gate(){$('gt').style.display='flex'}
+function login(){PW=$('pw').value;localStorage.setItem('pw',PW);load().catch(e=>note(e.message))}
+async function saveCopy(){const k=cur.find(o=>o.key==sel).name,v={text:$('cpt').value,hook:$('cph').value,format:$('cpf').value,price:$('cpp').value};try{await api('POST',{copy:{k,v}});CP[k]=v;note('Ad copy saved for the whole team.');draw()}catch(e){note(e.message)}}
+function works(){let o='<div class="s"><b>What works (T-'+W+')</b>: leads grouped by the tags set on each ad. Tag ads by opening them in the Ad view.</div><div class="wg">';
+[['hook','Hook'],['format','Format'],['price','Price in ad']].forEach(([d,t])=>{const m={};D.R.forEach(r=>{if(r[0]>=W)return;const v=(CP[D.A[r[3]]]||{})[d]||'Untagged',x=m[v]||(m[v]={n:0,g:0,c:0});x.n++;if(G(r[4]))x.g++;if(r[4]=='C')x.c++});
+o+=`<div><table style="min-width:0"><tr><th>${t}</th><th>Leads</th><th>Good %</th><th>L2O %</th></tr>`+Object.entries(m).sort((a,b)=>b[1].n-a[1].n).map(([k,x])=>`<tr><td>${k}</td><td>${x.n}</td><td>${(x.g/x.n*100).toFixed(1)}%</td><td>${(x.c/x.n*100).toFixed(1)}%</td></tr>`).join('')+'</table></div>'});
+$('wk').innerHTML=o+'</div>'}
+async function rd(f){const w=XLSX.read(await f.arrayBuffer(),{type:'array'});return w.SheetNames.flatMap(s=>XLSX.utils.sheet_to_json(w.Sheets[s],{defval:''}))}
+async function up(k,f){F[k]=f;if(F.m&&F.c)await run()}
+async function run(){note('Processing…');try{
+const m=await rd(F.m),c=await rd(F.c);
+const tm=v=>v instanceof Date?v:typeof v=='number'?new Date(Math.round((v-25569)*864e5)):new Date(v);
+const ph=s=>String(s).replace(/\D/g,'').slice(-10),dn=t=>Math.floor((t.getTime()+19800000)/864e5),tn=dn(new Date());
+let a=m.filter(r=>String(r.id).startsWith('l:')).map(r=>({...r,t:tm(r.created_time),ph:ph(r.phone_number)})).filter(r=>!isNaN(r.t));
+a.sort((x,y)=>x.t-y.t);const si=new Set(),sp=new Set();
+a=a.filter(r=>{const p=r.ph+'|'+r.ad_id;if(si.has(r.id)||sp.has(p))return false;si.add(r.id);sp.add(p);return true});
+const MS=['META_PAID','META','WHATSAPP_INSTA_ADS'],g={};
+c.forEach(r=>{const k=ph(r.Phone);(g[k]=g[k]||[]).push({...r,ca:tm(r['Created At'])})});
+const pick=r=>{const x=g[r.ph];if(!x)return null;let s=x.filter(y=>y.Campaign==r.campaign_name);if(!s.length)s=x.filter(y=>MS.includes(y.Source));if(!s.length)s=x;return s.reduce((p,q)=>q.ca>=p.ca?q:p)};
+const raw=[];a.forEach(r=>{const d=Math.max(0,tn-dn(r.t));if(d>60)return;const x=pick(r),s=x?x.Status:'NA',cd=!x?'N':s=='INTERESTED'?'I':s=='CONVERTED'?'C':'O';
+raw.push([d,String(r.campaign_name),String(r.adset_name),String(r.ad_name),cd,String(r.full_name),r.ph,r.t.toLocaleDateString('en-GB',{day:'2-digit',month:'short',timeZone:'Asia/Kolkata'}),s,x?String(x['Sub-status']):'',x?String(x.Owner):'',String(r.id).replace('l:',''),cd])});
+const U=k=>{const u=[...new Set(raw.map(r=>r[k]))].sort();return[u,Object.fromEntries(u.map((v,i)=>[v,i]))]};
+const[C,ci]=U(1),[S,sj]=U(2),[A,ak]=U(3);
+raw.forEach(r=>PII[r[11]]=[r[5],r[6]]);
+const R=raw.map(r=>[r[0],ci[r[1]],sj[r[2]],ak[r[3]],r[4],'','',r[7],r[8],r[9],r[10],r[11],r[12]]);
+await api('POST',{C,S,A,R});await load();
+note(`${R.length} Meta leads (last 60 days) from ${c.length} CRM rows uploaded and shared with the team.`)}catch(e){note('Upload failed: '+e.message)}}
+let ch=[];
+function mkc(id,t,sub){return new Chart($(id),{type:'line',data:{labels:[],datasets:[7,14,30].map((w,i)=>({label:'T-'+w+' ('+w+'-day window)',data:[],borderColor:['#1d9e75','#378add','#d85a30'][i],backgroundColor:['#1d9e75','#378add','#d85a30'][i],borderWidth:2,pointRadius:0,tension:.25,spanGaps:true}))},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{title:{display:true,text:t,align:'start'},subtitle:{display:true,text:sub,align:'start',padding:{bottom:8}},legend:{position:'bottom'}},scales:{y:{beginAtZero:true,title:{display:true,text:'% of leads in the window'},ticks:{callback:v=>v+'%'}},x:{title:{display:true,text:'Day the window ends'},ticks:{maxTicksLimit:8}}}}})}
+function charts(){if(typeof Chart=='undefined')return;if(!ch.length){Chart.defaults.color=getComputedStyle(document.body).color;ch=[mkc('c1','Good lead % trend','Lead quality: Interested or Converted, frozen'),mkc('c2','L2O % trend','Order yield: Converted ÷ Leads')]}
+const rows=sel?D.R.filter(r=>KF(r)==sel):D.R,lab=[];for(let x=29;x>=0;x--)lab.push(new Date(today-x*864e5).toLocaleDateString('en-GB',{day:'numeric',month:'short'}));
+[7,14,30].forEach((w,i)=>{const p=[],q=[];for(let x=29;x>=0;x--){let n=0,g=0,c=0;rows.forEach(r=>{if(r[0]>=x&&r[0]<x+w){n++;if(G(r[4]))g++;if(r[4]=='C')c++}});p.push(n?+(g/n*100).toFixed(1):null);q.push(n?+(c/n*100).toFixed(1):null)}
+ch[0].data.datasets[i].data=p;ch[1].data.datasets[i].data=q});
+ch.forEach(c=>{c.data.labels=lab;c.update()});
+const sr=sel&&cur.find(o=>o.key==sel);$('sc').textContent='Charts: '+(sr?sr.name+' ('+L+')':'all Meta leads')+'. Each point is the trailing window ending that day.'}
+function pick(i){sel=cur[i].key;draw();$('dt').scrollIntoView({behavior:'smooth'})}
+function draw(){const m={};let T={leads:0,i:0,c:0,na:0,fz:0};
+$('sub').textContent='Windows run back from '+new Date(today).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' by Meta lead-form date.';
+D.R.forEach(r=>{if(r[0]>=W)return;const ca=D.C[r[1]],se=D.S[r[2]],ad=D.A[r[3]],key=KF(r);
+const o=m[key]||(m[key]={key,name:L=='Campaign'?ca:L=='Ad set'?se:ad,sub:L=='Campaign'?'':L=='Ad set'?ca:ca+' › '+se,leads:0,i:0,c:0});
+o.leads++;T.leads++;if(r[4]=='I'){o.i++;T.i++}if(r[4]=='C'){o.c++;T.c++}if(r[4]=='N')T.na++;if(G(r[4])&&!G(r[12]))T.fz++});
+let a=Object.values(m).map(o=>(o.good=o.i+o.c,o.pct=o.good/o.leads*100,o.l2o=o.c/o.leads*100,o));
+const mn=+$('mn').value,q=$('q').value.toLowerCase();
+a=a.filter(o=>(o.name+o.sub).toLowerCase().includes(q)).sort((x,y)=>sk=='name'?sd*-x.name.localeCompare(y.name):sd*(x[sk]-y[sk]));cur=a;
+const el=a.filter(o=>o.leads>=mn).map(o=>o.pct).sort((x,y)=>x-y),lo=el[Math.floor(el.length/3)],hi=el[Math.ceil(el.length*2/3)-1],gd=T.i+T.c;
+$('k').innerHTML=[[T.leads,'Leads'],[T.i,'Interested'],[T.c,'Converted'],[gd,'Good leads'],[(T.leads?gd/T.leads*100:0).toFixed(1)+'%','Good lead %'],[(T.leads?T.c/T.leads*100:0).toFixed(1)+'%','L2O %'],[T.fz,'Frozen (since slipped)'],[T.na,'Not found in CRM']].map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
+$('t').innerHTML='<tr>'+cols.map(c=>`<th onclick="sk='${c[0]}';sd=sk==(window.p||'')?-sd:-1;window.p=sk;draw()">${c[0]=='name'?L:c[1]}${sk==c[0]?(sd<0?' ↓':' ↑'):''}</th>`).join('')+'</tr>'+
+a.map((o,ix)=>{const ok=o.leads>=mn&&el.length>2,bg=ok?(o.pct>=hi?'var(--g)':o.pct<=lo?'var(--r)':''):'';
+return `<tr class="${o.key==sel?'sel':''}" style="cursor:pointer" onclick="pick(${ix})"><td>${esc(o.name)}<small>${esc(o.sub)}</small></td><td>${o.leads}</td><td>${o.i}</td><td>${o.c}</td><td>${o.good}</td><td style="background:${bg}">${o.pct.toFixed(1)}%${ok?'':' *'}</td><td>${o.l2o.toFixed(1)}%</td></tr>`}).join('');
+const sr=sel&&cur.find(o=>o.key==sel),dt=$('dt');charts();works();
+if(!sr){dt.innerHTML='';return}
+const cp=sr?CP[sr.name]||{}:{},op=(a,v)=>a.map(x=>`<option${x==v?' selected':''}>${x}</option>`).join(''),ed=L=='Ad'?`<div style="margin:8px 0"><b>Ad copy and tags</b><textarea id="cpt" rows="4" style="width:100%;box-sizing:border-box;margin:6px 0;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px">${esc(cp.text||'')}</textarea><select id="cph">${op(HK,cp.hook)}</select> <select id="cpf">${op(FM,cp.format)}</select> <select id="cpp">${op(PR,cp.price)}</select> <button onclick="saveCopy()">Save for team</button></div>`:'';
+const ls=D.R.filter(r=>r[0]<W&&KF(r)==sel&&G(r[4])).sort((x,y)=>x[0]-y[0]);
+dt.innerHTML=`<div class="dp"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(sr.name)} · ${ls.length} good leads (Interested + Converted) · T-${W}</b><button onclick="sel=null;draw()">Close</button></div>${ed}<div class="w"><table style="min-width:560px"><tr><th>Date</th><th>Name</th><th>Phone</th><th>CRM status</th><th>Sub-status</th><th>Owner</th></tr>`+ls.map(r=>`<tr><td>${r[7]}</td><td>${esc(r[5])||'—'}</td><td>${r[6]||'—'}</td><td style="background:var(--g)">${r[8]}${G(r[12])?'':' (frozen good)'}</td><td>${esc(r[9]).replace(/_/g,' ')}</td><td>${esc(r[10])}</td></tr>`).join('')+`</table></div></div>`}
+draw();
+PW?load().catch(e=>note(e.message)):gate();
+</script></body></html>
