@@ -1,1 +1,1 @@
-{ "name": "meta-lead-dashboard", "version": "1.0.0", "private": true, "dependencies": { "@upstash/redis": "^1.34.0" } }
+{ "name": "meta-dashboard", "version": "1.0.0", "private": true, "dependencies": { "@neondatabase/serverless": "^0.10.4" } }
