@@ -22,7 +22,7 @@ td small{display:block;color:var(--mu)}.n{color:var(--mu);font-size:12px;margin-
 <div class="s" id="sub"></div>
 <div class="up" id="gt" style="display:none">Team password <input id="pw" type="password" onkeydown="if(event.key=='Enter')login()"><button onclick="login()">Open</button></div>
 <div class="up"><label>Meta live sheet (.xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('m',this.files[0])"></label><label>Lead dump (.csv / .xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('c',this.files[0])"></label><span id="nt"></span></div>
-<div class="bar"><span id="wb"></span><span id="lb"></span><label>Min leads <input id="mn" type="number" value="10" min="0"></label><input id="q" placeholder="Search" style="width:140px"></div>
+<div class="bar"><span id="wb"></span><span id="lb"></span><label>Min leads <input id="mn" type="number" value="10" min="0"></label><input id="q" placeholder="Search" style="width:140px"><label id="utl" style="display:none"><input type="checkbox" id="ut" style="width:auto" onchange="draw()"> Untagged ads only</label><span id="tc" class="s" style="margin:0"></span></div>
 <div class="k" id="k"></div>
 <div class="s" id="sc"></div><div class="n" style="margin:0 0 10px"><b>How to read these charts.</b> <b>Good lead % trend</b> shows whether the leads coming in are getting better or worse (use it to decide which campaigns or ads to scale or pause). <b>L2O % trend</b> shows how many leads actually turn into orders. Each line is a trailing window: the point on 15 Nov for T-7 covers leads from 9 to 15 Nov. <span style="color:#1d9e75">■</span> T-7 reacts fast but is noisy, <span style="color:#378add">■</span> T-14 is the middle view, <span style="color:#d85a30">■</span> T-30 is the smoothest and most reliable. Click a legend item to hide or show that line. Gaps mean no leads in that window. The last few days are always understated because those leads haven't matured yet.</div><div class="ch"><div><canvas id="c1"></canvas></div><div><canvas id="c2"></canvas></div></div>
 <div id="wk"></div><div id="dt"></div><div class="w"><table id="t"></table></div>
@@ -34,6 +34,7 @@ let D={C:[],S:[],A:[],R:[]},W=30,L='Campaign',sk='good',sd=-1,sel=null,today=Dat
 const HK=['Untagged','Price-led','Doctor-led','Before/After','Offer','Educational','Testimonial','Problem-aware','Other'],FM=['Untagged','Video','Image','Carousel'],PR=['Untagged','Price shown','No price'],dnum=t=>Math.floor((t+19800000)/864e5);
 const RK={O:0,N:0,I:1,C:2},sh=id=>(parseInt(id.slice(-1))||0)%10,G=c=>RK[c]>0,$=i=>document.getElementById(i);
 const cols=[['name','Name'],['leads','Leads'],['i','Interested'],['c','Converted'],['good','Good'],['pct','Good %'],['l2o','L2O %']];
+const tg=k=>{const c=CP[k]||{};return['hook','format','price'].map(d=>c[d]).filter(v=>v&&v!='Untagged')};
 const TK=r=>D.C[r[1]]+'|'+D.S[r[2]]+'|'+D.A[r[3]];
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const note=t=>$('nt').textContent=t;
@@ -90,14 +91,15 @@ $('sub').textContent='Windows run back from '+new Date(today).toLocaleDateString
 D.R.forEach(r=>{if(r[0]>=W)return;const ca=D.C[r[1]],se=D.S[r[2]],ad=D.A[r[3]],key=KF(r);
 const o=m[key]||(m[key]={key,name:L=='Campaign'?ca:L=='Ad set'?se:ad,sub:L=='Campaign'?'':L=='Ad set'?ca:ca+' › '+se,leads:0,i:0,c:0});
 o.leads++;T.leads++;if(r[4]=='I'){o.i++;T.i++}if(r[4]=='C'){o.c++;T.c++}if(r[4]=='N')T.na++;if(G(r[4])&&!G(r[12]))T.fz++});
-let a=Object.values(m).map(o=>(o.good=o.i+o.c,o.pct=o.good/o.leads*100,o.l2o=o.c/o.leads*100,o));
+let a=Object.values(m).map(o=>(o.tags=L=='Ad'?tg(o.key):[],o.good=o.i+o.c,o.pct=o.good/o.leads*100,o.l2o=o.c/o.leads*100,o));
 const mn=+$('mn').value,q=$('q').value.toLowerCase();
-a=a.filter(o=>(o.name+o.sub).toLowerCase().includes(q)).sort((x,y)=>sk=='name'?sd*-x.name.localeCompare(y.name):sd*(x[sk]-y[sk]));cur=a;
+$('utl').style.display=$('tc').style.display=L=='Ad'?'':'none';if(L=='Ad'){const nt=a.filter(o=>o.tags.length).length;$('tc').textContent=nt+' of '+a.length+' ads tagged'}
+a=a.filter(o=>L!='Ad'||!$('ut').checked||!o.tags.length).filter(o=>(o.name+o.sub).toLowerCase().includes(q)).sort((x,y)=>sk=='name'?sd*-x.name.localeCompare(y.name):sd*(x[sk]-y[sk]));cur=a;
 const el=a.filter(o=>o.leads>=mn).map(o=>o.pct).sort((x,y)=>x-y),lo=el[Math.floor(el.length/3)],hi=el[Math.ceil(el.length*2/3)-1],gd=T.i+T.c;
 $('k').innerHTML=[[T.leads,'Leads'],[T.i,'Interested'],[T.c,'Converted'],[gd,'Good leads'],[(T.leads?gd/T.leads*100:0).toFixed(1)+'%','Good lead %'],[(T.leads?T.c/T.leads*100:0).toFixed(1)+'%','L2O %'],[T.fz,'Frozen (since slipped)'],[T.na,'Not found in CRM']].map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
 $('t').innerHTML='<tr>'+cols.map(c=>`<th onclick="sk='${c[0]}';sd=sk==(window.p||'')?-sd:-1;window.p=sk;draw()">${c[0]=='name'?L:c[1]}${sk==c[0]?(sd<0?' ↓':' ↑'):''}</th>`).join('')+'</tr>'+
 a.map((o,ix)=>{const ok=o.leads>=mn&&el.length>2,bg=ok?(o.pct>=hi?'var(--g)':o.pct<=lo?'var(--r)':''):'';
-return `<tr class="${o.key==sel?'sel':''}" style="cursor:pointer" onclick="pick(${ix})"><td>${esc(o.name)}<small>${esc(o.sub)}</small></td><td>${o.leads}</td><td>${o.i}</td><td>${o.c}</td><td>${o.good}</td><td style="background:${bg}">${o.pct.toFixed(1)}%${ok?'':' *'}</td><td>${o.l2o.toFixed(1)}%</td></tr>`}).join('');
+return `<tr class="${o.key==sel?'sel':''}" style="cursor:pointer" onclick="pick(${ix})"><td>${esc(o.name)}<small>${esc(o.sub)}</small>${L=='Ad'?(o.tags.length?`<small style="color:var(--ac)">Tagged: ${esc(o.tags.join(' · '))}</small>`:'<small style="background:var(--y);display:inline-block;padding:0 6px;border-radius:6px;color:var(--fg)">Not tagged</small>'):''}</td><td>${o.leads}</td><td>${o.i}</td><td>${o.c}</td><td>${o.good}</td><td style="background:${bg}">${o.pct.toFixed(1)}%${ok?'':' *'}</td><td>${o.l2o.toFixed(1)}%</td></tr>`}).join('');
 const sr=sel&&cur.find(o=>o.key==sel),dt=$('dt');charts();works();
 if(!sr){dt.innerHTML='';return}
 const cp=sr?CP[sr.key]||{}:{},op=(a,v)=>a.map(x=>`<option${x==v?' selected':''}>${x}</option>`).join(''),ed=L=='Ad'?`<div style="margin:8px 0"><b>Ad copy and tags</b><textarea id="cpt" rows="4" style="width:100%;box-sizing:border-box;margin:6px 0;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px">${esc(cp.text||'')}</textarea><select id="cph">${op(HK,cp.hook)}</select> <select id="cpf">${op(FM,cp.format)}</select> <select id="cpp">${op(PR,cp.price)}</select> <button onclick="saveCopy()">Save for team</button></div>`:'';
