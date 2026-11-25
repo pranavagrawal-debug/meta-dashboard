@@ -23,7 +23,7 @@ a.lk{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}a
 <div class="s" id="sub"></div>
 <div class="up" id="gt" style="display:none">Team password <input id="pw" type="password" onkeydown="if(event.key=='Enter')login()"><button onclick="login()">Open</button></div>
 <div class="up"><label>Meta live sheet (.xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('m',this.files[0])"></label><label>Lead dump (.csv / .xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('c',this.files[0])"></label><span id="nt"></span></div>
-<div class="bar"><button id="tab1" class="on" onclick="setTab(0)">Campaign wise</button><button id="tab2" onclick="setTab(1)">BD wise</button></div>
+<div class="bar"><button id="tab1" class="on" onclick="setTab(0)">Campaign wise</button><button id="tab2" onclick="setTab(1)">BD wise</button><button id="tab3" onclick="setTab(2)">Facebook vs Instagram</button></div>
 <div class="bar"><span id="wb"></span><span id="lb"></span><label>Min leads <input id="mn" type="number" value="10" min="0"></label><input id="q" placeholder="Search" style="width:140px"><label id="utl" style="display:none"><input type="checkbox" id="ut" style="width:auto" onchange="draw()"> Untagged ads only</label><span id="tc" class="s" style="margin:0"></span></div>
 <div class="k" id="k"></div><div id="ll"></div>
 <div class="s" id="sc"></div><div class="n" style="margin:0 0 10px"><b>How to read these charts.</b> <b>Good lead % trend</b> shows whether the leads coming in are getting better or worse (use it to decide which campaigns or ads to scale or pause). <b>L2O % trend</b> shows how many leads actually turn into orders. Each line is a trailing window: the point on 15 Nov for T-7 covers leads from 9 to 15 Nov. <span style="color:#1d9e75">■</span> T-7 reacts fast but is noisy, <span style="color:#378add">■</span> T-14 is the middle view, <span style="color:#d85a30">■</span> T-30 is the smoothest and most reliable. Click a legend item to hide or show that line. Gaps mean no leads in that window. The last few days are always understated because those leads haven't matured yet.</div><div class="ch"><div><canvas id="c1"></canvas></div><div><canvas id="c2"></canvas></div></div>
@@ -43,15 +43,16 @@ const ML={v:'OPD visited',leads:'Leads',i:'Interested',c:'Converted',good:'Good 
 function lk(t,sc,m,n){LR.push({n,m,f:r=>sc(r)&&M[m](r)});return`<a class="lk" onclick="event.stopPropagation();openL(${LR.length-1})">${t}</a>`}
 function openL(i){LS=LR[i];draw();$('ll').scrollIntoView({behavior:'smooth'})}
 function leadPanel(){if(!LS)return'';const rs=D.R.filter(r=>r[0]<W&&LS.f(r)).sort((x,y)=>x[0]-y[0]);
-return`<div class="dp"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(LS.n)} · ${ML[LS.m]} · ${rs.length} · T-${W}</b><button onclick="LS=null;draw()">Close</button></div><div class="w"><table style="min-width:760px"><tr><th>Date</th><th>Name</th><th>Phone</th><th>Ad</th><th>CRM status</th><th>Sub-status</th><th>Owner</th></tr>`+rs.map(r=>`<tr><td>${r[7]}</td><td>${esc(r[5])||'—'}</td><td>${r[6]||'—'}</td><td style="white-space:normal">${esc(D.A[r[3]])}<small>${esc(D.C[r[1]])} › ${esc(D.S[r[2]])}</small></td><td style="${G(r[4])?'background:var(--g)':''}">${esc(r[8])}${G(r[4])&&!G(r[12])?' (frozen good)':''}</td><td>${esc(r[9]).replace(/_/g,' ')}</td><td>${esc(r[10])}</td></tr>`).join('')+'</table></div></div>'}
+return`<div class="dp"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(LS.n)} · ${ML[LS.m]} · ${rs.length} · T-${W}</b><button onclick="LS=null;draw()">Close</button></div><div class="w"><table style="min-width:760px"><tr><th>Date</th><th>Name</th><th>Phone</th><th>Ad</th><th>Platform</th><th>CRM status</th><th>Sub-status</th><th>Owner</th></tr>`+rs.map(r=>`<tr><td>${r[7]}</td><td>${esc(r[5])||'—'}</td><td>${r[6]||'—'}</td><td style="white-space:normal">${esc(D.A[r[3]])}<small>${esc(D.C[r[1]])} › ${esc(D.S[r[2]])}</small></td><td>${esc(r[13]||'Unknown')}</td><td style="${G(r[4])?'background:var(--g)':''}">${esc(r[8])}${G(r[4])&&!G(r[12])?' (frozen good)':''}</td><td>${esc(r[9]).replace(/_/g,' ')}</td><td>${esc(r[10])}</td></tr>`).join('')+'</table></div></div>'}
 const TK=r=>D.C[r[1]]+'|'+D.S[r[2]]+'|'+D.A[r[3]];
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const note=t=>$('nt').textContent=t;
 function mk(id,arr,f){const e=$(id);arr.forEach(v=>{const b=document.createElement('button');b.textContent=(id=='wb'?'T-':'')+v;b.onclick=()=>{f(v);[...e.children].forEach(x=>x.classList.toggle('on',x===b));draw()};e.appendChild(b);if(v==(id=='wb'?30:'Campaign'))b.classList.add('on')})}
 mk('wb',[7,14,30],v=>W=v);mk('lb',['Campaign','Ad set','Ad'],v=>{L=v;LB=v;sel=null;LS=null});
-function setTab(t){L=t?'BD':LB;sel=null;LS=null;WS=null;$('tab1').classList.toggle('on',!t);$('tab2').classList.toggle('on',!!t);draw()}
+function setTab(t){L=t==1?'BD':t==2?'Platform':LB;sel=null;LS=null;WS=null;$('tab1').classList.toggle('on',!t);$('tab2').classList.toggle('on',t==1);$('tab3').classList.toggle('on',t==2);draw()}
+const SP=l=>l=='BD'||l=='Platform';
 ['mn','q'].forEach(i=>$(i).oninput=draw);
-const KF=r=>{if(L=='BD')return r[10]||'No owner';const ca=D.C[r[1]],se=D.S[r[2]],ad=D.A[r[3]];return L=='Campaign'?ca:L=='Ad set'?ca+'|'+se:ca+'|'+se+'|'+ad};
+const KF=r=>{if(L=='BD')return r[10]||'No owner';if(L=='Platform')return r[13]||'Unknown';const ca=D.C[r[1]],se=D.S[r[2]],ad=D.A[r[3]];return L=='Campaign'?ca:L=='Ad set'?ca+'|'+se:ca+'|'+se+'|'+ad};
 function applyLedger(R){let n=0;R.forEach(r=>{const k=r[11],c=r[12],p=LG[k];let b=c;if(p&&RK[p]>=RK[c])b=p;if(G(b)&&LG[k]!==b){LG[k]=b;n++}r[4]=G(b)?b:c});return n}
 async function api(m,b){const r=await fetch('/api/data',{method:m,headers:{'x-pass':PW,'content-type':'application/json'},body:b?JSON.stringify(b):undefined});if(r.status==401){PW='';localStorage.removeItem('pw');gate();throw new Error('Wrong password')}if(!r.ok)throw new Error('Server error '+r.status);return r.json()}
 async function load(){const j=await api('GET');D={C:j.C||[],S:j.S||[],A:j.A||[],R:j.R||[]};LG=j.ledger||{};CP=j.copy||{};Object.assign(PII,j.pii||{});const k=j.updated?Math.max(0,dnum(Date.now())-dnum(j.updated)):0;D.R.forEach(r=>{r[0]+=k;const p=PII[r[11]];if(p){r[5]=p[0];r[6]=p[1]}});applyLedger(D.R);today=Date.now();$('gt').style.display='none';note(j.updated?'Shared data last uploaded '+new Date(j.updated).toLocaleString('en-GB'):'No data yet. Upload the two files above.');draw()}
@@ -77,15 +78,16 @@ const ph=s=>String(s).replace(/\D/g,'').slice(-10),dn=t=>Math.floor((t.getTime()
 let a=m.filter(r=>String(r.id).startsWith('l:')).map(r=>({...r,t:tm(r.created_time),ph:ph(r.phone_number)})).filter(r=>!isNaN(r.t));
 a.sort((x,y)=>x.t-y.t);const si=new Set(),sp=new Set();
 a=a.filter(r=>{const p=r.ph+'|'+r.ad_id;if(si.has(r.id)||sp.has(p))return false;si.add(r.id);sp.add(p);return true});
+const pf=r=>{const k=Object.keys(r).find(k=>k.trim().toLowerCase()=='platform'),v=String(k?r[k]:'').trim().toLowerCase();return!v?'Unknown':{fb:'Facebook',facebook:'Facebook',ig:'Instagram',instagram:'Instagram',an:'Audience Network',msg:'Messenger',messenger:'Messenger'}[v]||v};
 const MS=['META_PAID','META','WHATSAPP_INSTA_ADS'],g={};
 c.forEach(r=>{const k=ph(r.Phone);(g[k]=g[k]||[]).push({...r,ca:tm(r['Created At'])})});
 const pick=r=>{const x=g[r.ph];if(!x)return null;let s=x.filter(y=>y.Campaign==r.campaign_name);if(!s.length)s=x.filter(y=>MS.includes(y.Source));if(!s.length)s=x;return s.reduce((p,q)=>q.ca>=p.ca?q:p)};
 const raw=[];a.forEach(r=>{const x=pick(r),t=x&&!isNaN(x.ca)?x.ca:r.t,d=Math.max(0,tn-dn(t));if(d>60)return;const s=x?x.Status:'NA',cd=!x?'N':s=='INTERESTED'?'I':s=='CONVERTED'?'C':'O';
-raw.push([d,String(r.campaign_name),String(r.adset_name),String(r.ad_name),cd,String(r.full_name),r.ph,t.toLocaleDateString('en-GB',{day:'2-digit',month:'short',timeZone:'Asia/Kolkata'}),s,x?String(x['Sub-status']):'',x?String(x.Owner):'',String(r.id).replace('l:',''),cd])});
+raw.push([d,String(r.campaign_name),String(r.adset_name),String(r.ad_name),cd,String(r.full_name),r.ph,t.toLocaleDateString('en-GB',{day:'2-digit',month:'short',timeZone:'Asia/Kolkata'}),s,x?String(x['Sub-status']):'',x?String(x.Owner):'',String(r.id).replace('l:',''),cd,pf(r)])});
 const U=k=>{const u=[...new Set(raw.map(r=>r[k]))].sort();return[u,Object.fromEntries(u.map((v,i)=>[v,i]))]};
 const[C,ci]=U(1),[S,sj]=U(2),[A,ak]=U(3);
 raw.forEach(r=>PII[r[11]]=[r[5],r[6]]);
-const R=raw.map(r=>[r[0],ci[r[1]],sj[r[2]],ak[r[3]],r[4],'','',r[7],r[8],r[9],r[10],r[11],r[12]]);
+const R=raw.map(r=>[r[0],ci[r[1]],sj[r[2]],ak[r[3]],r[4],'','',r[7],r[8],r[9],r[10],r[11],r[12],r[13]]);
 await api('POST',{C,S,A,R,pii:Object.fromEntries(raw.map(r=>[r[11],[r[5],r[6]]]))});await load();
 note(`${R.length} Meta leads (last 60 days) from ${c.length} CRM rows uploaded and shared with the team.`)}catch(e){note('Upload failed: '+e.message)}}
 let ch=[];
@@ -100,7 +102,7 @@ function pick(i){sel=cur[i].key;draw();$('dt').scrollIntoView({behavior:'smooth'
 function draw(){LR=[];const m={};let T={leads:0,i:0,c:0,v:0,na:0,fz:0};
 $('sub').textContent='Windows run back from '+new Date(today).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' by CRM created date (Meta lead-form date for leads not in the CRM).';
 D.R.forEach(r=>{if(r[0]>=W)return;const ca=D.C[r[1]],se=D.S[r[2]],ad=D.A[r[3]],key=KF(r);
-const o=m[key]||(m[key]={key,name:L=='BD'?key:L=='Campaign'?ca:L=='Ad set'?se:ad,sub:L=='BD'||L=='Campaign'?'':L=='Ad set'?ca:ca+' › '+se,leads:0,i:0,c:0,v:0});
+const o=m[key]||(m[key]={key,name:SP(L)?key:L=='Campaign'?ca:L=='Ad set'?se:ad,sub:SP(L)||L=='Campaign'?'':L=='Ad set'?ca:ca+' › '+se,leads:0,i:0,c:0,v:0});
 o.leads++;T.leads++;if(r[4]=='I'){o.i++;T.i++}if(r[4]=='C'){o.c++;T.c++}if(isV(r)){o.v++;T.v++}if(r[4]=='N')T.na++;if(G(r[4])&&!G(r[12]))T.fz++});
 let a=Object.values(m).map(o=>(o.tags=L=='Ad'?tg(o.key):[],o.good=o.i+o.c,o.pct=o.good/o.leads*100,o.l2o=o.c/o.leads*100,o.al2o=o.v/o.leads*100,o));
 const mn=+$('mn').value,q=$('q').value.toLowerCase();
@@ -111,7 +113,7 @@ $('k').innerHTML=[[T.leads,'Leads','leads'],[T.i,'Interested','i'],[T.c,'Convert
 $('t').innerHTML='<tr>'+cols.map(c=>`<th onclick="sk='${c[0]}';sd=sk==(window.p||'')?-sd:-1;window.p=sk;draw()">${c[0]=='name'?L:c[1]}${sk==c[0]?(sd<0?' ↓':' ↑'):''}</th>`).join('')+'</tr>'+
 a.map((o,ix)=>{const sc=r=>KF(r)==o.key,ok=o.leads>=mn&&el.length>2,bg=ok?(o.pct>=hi?'var(--g)':o.pct<=lo?'var(--r)':''):'';
 return `<tr class="${o.key==sel?'sel':''}" style="cursor:pointer" onclick="pick(${ix})"><td>${esc(o.name)}<small>${esc(o.sub)}</small>${L=='Ad'?(o.tags.length?`<small style="color:var(--ac)">Tagged: ${esc(o.tags.join(' · '))}</small>`:'<small style="background:var(--y);display:inline-block;padding:0 6px;border-radius:6px;color:var(--fg)">Not tagged</small>'):''}</td><td>${lk(o.leads,sc,'leads',o.name)}</td><td>${lk(o.i,sc,'i',o.name)}</td><td>${lk(o.c,sc,'c',o.name)}</td><td>${lk(o.good,sc,'good',o.name)}</td><td style="background:${bg}">${lk(o.pct.toFixed(1)+'%',sc,'good',o.name)}${ok?'':' *'}</td><td>${lk(o.l2o.toFixed(1)+'%',sc,'c',o.name)}</td><td>${lk(o.al2o.toFixed(1)+'%',sc,'v',o.name)}</td></tr>`}).join('');
-const sr=sel&&cur.find(o=>o.key==sel),dt=$('dt');charts();if(L=='BD')$('wk').innerHTML='';else works();$('lb').style.display=L=='BD'?'none':'';$('ll').innerHTML=leadPanel();
+const sr=sel&&cur.find(o=>o.key==sel),dt=$('dt');charts();if(SP(L))$('wk').innerHTML='';else works();$('lb').style.display=SP(L)?'none':'';$('ll').innerHTML=leadPanel();
 if(!sr){dt.innerHTML='';return}
 const cp=sr?CP[sr.key]||{}:{},op=(a,v)=>a.map(x=>`<option${x==v?' selected':''}>${x}</option>`).join(''),ed=L=='Ad'?`<div style="margin:8px 0"><b>Ad copy and tags</b><textarea id="cpt" rows="4" style="width:100%;box-sizing:border-box;margin:6px 0;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px">${esc(cp.text||'')}</textarea><div style="margin:4px 0"><span class="s">Hooks (pick all that apply):</span> ${HK.slice(1).map(h=>`<label style="margin-right:10px;white-space:nowrap"><input type="checkbox" class="chk" value="${h}" style="width:auto"${tv(cp,'hook').includes(h)?' checked':''}> ${h}</label>`).join('')}</div><select id="cpf">${op(FM,cp.format)}</select> <select id="cpp">${op(PR,cp.price)}</select> <button onclick="saveCopy()">Save for team</button></div>`:'';
 const ls=D.R.filter(r=>r[0]<W&&KF(r)==sel&&G(r[4])).sort((x,y)=>x[0]-y[0]);
