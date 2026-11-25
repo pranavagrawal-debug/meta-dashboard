@@ -23,6 +23,7 @@ a.lk{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}a
 <div class="s" id="sub"></div>
 <div class="up" id="gt" style="display:none">Team password <input id="pw" type="password" onkeydown="if(event.key=='Enter')login()"><button onclick="login()">Open</button></div>
 <div class="up"><label>Meta live sheet (.xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('m',this.files[0])"></label><label>Lead dump (.csv / .xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('c',this.files[0])"></label><span id="nt"></span></div>
+<div class="bar"><button id="tab1" class="on" onclick="setTab(0)">Campaign wise</button><button id="tab2" onclick="setTab(1)">BD wise</button></div>
 <div class="bar"><span id="wb"></span><span id="lb"></span><label>Min leads <input id="mn" type="number" value="10" min="0"></label><input id="q" placeholder="Search" style="width:140px"><label id="utl" style="display:none"><input type="checkbox" id="ut" style="width:auto" onchange="draw()"> Untagged ads only</label><span id="tc" class="s" style="margin:0"></span></div>
 <div class="k" id="k"></div><div id="ll"></div>
 <div class="s" id="sc"></div><div class="n" style="margin:0 0 10px"><b>How to read these charts.</b> <b>Good lead % trend</b> shows whether the leads coming in are getting better or worse (use it to decide which campaigns or ads to scale or pause). <b>L2O % trend</b> shows how many leads actually turn into orders. Each line is a trailing window: the point on 15 Nov for T-7 covers leads from 9 to 15 Nov. <span style="color:#1d9e75">■</span> T-7 reacts fast but is noisy, <span style="color:#378add">■</span> T-14 is the middle view, <span style="color:#d85a30">■</span> T-30 is the smoothest and most reliable. Click a legend item to hide or show that line. Gaps mean no leads in that window. The last few days are always understated because those leads haven't matured yet.</div><div class="ch"><div><canvas id="c1"></canvas></div><div><canvas id="c2"></canvas></div></div>
@@ -31,7 +32,7 @@ a.lk{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}a
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-let D={C:[],S:[],A:[],R:[]},W=30,L='Campaign',sk='good',sd=-1,sel=null,today=Date.now(),LG={},CP={},PII={},cur=[],F={},WS=null,LR=[],LS=null,PW=localStorage.getItem('pw')||'';
+let D={C:[],S:[],A:[],R:[]},W=30,L='Campaign',sk='good',sd=-1,sel=null,today=Date.now(),LG={},CP={},PII={},cur=[],F={},WS=null,LR=[],LS=null,LB='Campaign',PW=localStorage.getItem('pw')||'';
 const HK=['Untagged','Price-led','Doctor-led','Before/After','Offer','Educational','Testimonial','Problem-aware','Other'],FM=['Untagged','Video','Image','Carousel'],PR=['Untagged','Price shown','No price'],dnum=t=>Math.floor((t+19800000)/864e5);
 const RK={O:0,N:0,I:1,C:2},sh=id=>(parseInt(id.slice(-1))||0)%10,G=c=>RK[c]>0,$=i=>document.getElementById(i);
 const cols=[['name','Name'],['leads','Leads'],['i','Interested'],['c','Converted'],['good','Good'],['pct','Good %'],['l2o','L2O %']];
@@ -46,9 +47,10 @@ const TK=r=>D.C[r[1]]+'|'+D.S[r[2]]+'|'+D.A[r[3]];
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const note=t=>$('nt').textContent=t;
 function mk(id,arr,f){const e=$(id);arr.forEach(v=>{const b=document.createElement('button');b.textContent=(id=='wb'?'T-':'')+v;b.onclick=()=>{f(v);[...e.children].forEach(x=>x.classList.toggle('on',x===b));draw()};e.appendChild(b);if(v==(id=='wb'?30:'Campaign'))b.classList.add('on')})}
-mk('wb',[7,14,30],v=>W=v);mk('lb',['Campaign','Ad set','Ad'],v=>{L=v;sel=null;LS=null});
+mk('wb',[7,14,30],v=>W=v);mk('lb',['Campaign','Ad set','Ad'],v=>{L=v;LB=v;sel=null;LS=null});
+function setTab(t){L=t?'BD':LB;sel=null;LS=null;WS=null;$('tab1').classList.toggle('on',!t);$('tab2').classList.toggle('on',!!t);draw()}
 ['mn','q'].forEach(i=>$(i).oninput=draw);
-const KF=r=>{const ca=D.C[r[1]],se=D.S[r[2]],ad=D.A[r[3]];return L=='Campaign'?ca:L=='Ad set'?ca+'|'+se:ca+'|'+se+'|'+ad};
+const KF=r=>{if(L=='BD')return r[10]||'No owner';const ca=D.C[r[1]],se=D.S[r[2]],ad=D.A[r[3]];return L=='Campaign'?ca:L=='Ad set'?ca+'|'+se:ca+'|'+se+'|'+ad};
 function applyLedger(R){let n=0;R.forEach(r=>{const k=r[11],c=r[12],p=LG[k];let b=c;if(p&&RK[p]>=RK[c])b=p;if(G(b)&&LG[k]!==b){LG[k]=b;n++}r[4]=G(b)?b:c});return n}
 async function api(m,b){const r=await fetch('/api/data',{method:m,headers:{'x-pass':PW,'content-type':'application/json'},body:b?JSON.stringify(b):undefined});if(r.status==401){PW='';localStorage.removeItem('pw');gate();throw new Error('Wrong password')}if(!r.ok)throw new Error('Server error '+r.status);return r.json()}
 async function load(){const j=await api('GET');D={C:j.C||[],S:j.S||[],A:j.A||[],R:j.R||[]};LG=j.ledger||{};CP=j.copy||{};Object.assign(PII,j.pii||{});const k=j.updated?Math.max(0,dnum(Date.now())-dnum(j.updated)):0;D.R.forEach(r=>{r[0]+=k;const p=PII[r[11]];if(p){r[5]=p[0];r[6]=p[1]}});applyLedger(D.R);today=Date.now();$('gt').style.display='none';note(j.updated?'Shared data last uploaded '+new Date(j.updated).toLocaleString('en-GB'):'No data yet. Upload the two files above.');draw()}
@@ -97,7 +99,7 @@ function pick(i){sel=cur[i].key;draw();$('dt').scrollIntoView({behavior:'smooth'
 function draw(){LR=[];const m={};let T={leads:0,i:0,c:0,na:0,fz:0};
 $('sub').textContent='Windows run back from '+new Date(today).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' by Meta lead-form date.';
 D.R.forEach(r=>{if(r[0]>=W)return;const ca=D.C[r[1]],se=D.S[r[2]],ad=D.A[r[3]],key=KF(r);
-const o=m[key]||(m[key]={key,name:L=='Campaign'?ca:L=='Ad set'?se:ad,sub:L=='Campaign'?'':L=='Ad set'?ca:ca+' › '+se,leads:0,i:0,c:0});
+const o=m[key]||(m[key]={key,name:L=='BD'?key:L=='Campaign'?ca:L=='Ad set'?se:ad,sub:L=='BD'||L=='Campaign'?'':L=='Ad set'?ca:ca+' › '+se,leads:0,i:0,c:0});
 o.leads++;T.leads++;if(r[4]=='I'){o.i++;T.i++}if(r[4]=='C'){o.c++;T.c++}if(r[4]=='N')T.na++;if(G(r[4])&&!G(r[12]))T.fz++});
 let a=Object.values(m).map(o=>(o.tags=L=='Ad'?tg(o.key):[],o.good=o.i+o.c,o.pct=o.good/o.leads*100,o.l2o=o.c/o.leads*100,o));
 const mn=+$('mn').value,q=$('q').value.toLowerCase();
@@ -108,7 +110,7 @@ $('k').innerHTML=[[T.leads,'Leads','leads'],[T.i,'Interested','i'],[T.c,'Convert
 $('t').innerHTML='<tr>'+cols.map(c=>`<th onclick="sk='${c[0]}';sd=sk==(window.p||'')?-sd:-1;window.p=sk;draw()">${c[0]=='name'?L:c[1]}${sk==c[0]?(sd<0?' ↓':' ↑'):''}</th>`).join('')+'</tr>'+
 a.map((o,ix)=>{const sc=r=>KF(r)==o.key,ok=o.leads>=mn&&el.length>2,bg=ok?(o.pct>=hi?'var(--g)':o.pct<=lo?'var(--r)':''):'';
 return `<tr class="${o.key==sel?'sel':''}" style="cursor:pointer" onclick="pick(${ix})"><td>${esc(o.name)}<small>${esc(o.sub)}</small>${L=='Ad'?(o.tags.length?`<small style="color:var(--ac)">Tagged: ${esc(o.tags.join(' · '))}</small>`:'<small style="background:var(--y);display:inline-block;padding:0 6px;border-radius:6px;color:var(--fg)">Not tagged</small>'):''}</td><td>${lk(o.leads,sc,'leads',o.name)}</td><td>${lk(o.i,sc,'i',o.name)}</td><td>${lk(o.c,sc,'c',o.name)}</td><td>${lk(o.good,sc,'good',o.name)}</td><td style="background:${bg}">${lk(o.pct.toFixed(1)+'%',sc,'good',o.name)}${ok?'':' *'}</td><td>${lk(o.l2o.toFixed(1)+'%',sc,'c',o.name)}</td></tr>`}).join('');
-const sr=sel&&cur.find(o=>o.key==sel),dt=$('dt');charts();works();$('ll').innerHTML=leadPanel();
+const sr=sel&&cur.find(o=>o.key==sel),dt=$('dt');charts();if(L=='BD')$('wk').innerHTML='';else works();$('lb').style.display=L=='BD'?'none':'';$('ll').innerHTML=leadPanel();
 if(!sr){dt.innerHTML='';return}
 const cp=sr?CP[sr.key]||{}:{},op=(a,v)=>a.map(x=>`<option${x==v?' selected':''}>${x}</option>`).join(''),ed=L=='Ad'?`<div style="margin:8px 0"><b>Ad copy and tags</b><textarea id="cpt" rows="4" style="width:100%;box-sizing:border-box;margin:6px 0;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px">${esc(cp.text||'')}</textarea><div style="margin:4px 0"><span class="s">Hooks (pick all that apply):</span> ${HK.slice(1).map(h=>`<label style="margin-right:10px;white-space:nowrap"><input type="checkbox" class="chk" value="${h}" style="width:auto"${tv(cp,'hook').includes(h)?' checked':''}> ${h}</label>`).join('')}</div><select id="cpf">${op(FM,cp.format)}</select> <select id="cpp">${op(PR,cp.price)}</select> <button onclick="saveCopy()">Save for team</button></div>`:'';
 const ls=D.R.filter(r=>r[0]<W&&KF(r)==sel&&G(r[4])).sort((x,y)=>x[0]-y[0]);
