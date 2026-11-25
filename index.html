@@ -28,7 +28,7 @@ a.lk{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}a
 <div class="k" id="k"></div><div id="ll"></div>
 <div class="s" id="sc"></div><div class="n" style="margin:0 0 10px"><b>How to read these charts.</b> <b>Good lead % trend</b> shows whether the leads coming in are getting better or worse (use it to decide which campaigns or ads to scale or pause). <b>L2O % trend</b> shows how many leads actually turn into orders. Each line is a trailing window: the point on 15 Nov for T-7 covers leads from 9 to 15 Nov. <span style="color:#1d9e75">■</span> T-7 reacts fast but is noisy, <span style="color:#378add">■</span> T-14 is the middle view, <span style="color:#d85a30">■</span> T-30 is the smoothest and most reliable. Click a legend item to hide or show that line. Gaps mean no leads in that window. The last few days are always understated because those leads haven't matured yet.</div><div class="ch"><div><canvas id="c1"></canvas></div><div><canvas id="c2"></canvas></div></div>
 <div id="wk"></div><div id="dt"></div><div class="w"><table id="t"></table></div>
-<div class="n">Good lead = Interested or Converted, frozen: once a lead has been seen as Interested or Converted in any upload it stays good, even if the CRM later moves it to Lost or Follow-up. L2O = Converted ÷ Leads. Click any row to see its good leads and to scope the charts to it. Charts show, for each day, the trailing T-7 / T-14 / T-30 window ending that day, grouped by lead-form date; recent points are immature. Green/red on Good % = top/bottom third among rows meeting min leads. * = below min leads. No spend data, so no cost metrics. Uploads are read in your browser and shared with the whole team. Shared storage holds lead IDs, names, phone numbers, statuses, ad copy and tags, and is protected by the team password.</div>
+<div class="n">Good lead = Interested or Converted, frozen: once a lead has been seen as Interested or Converted in any upload it stays good, even if the CRM later moves it to Lost or Follow-up. L2O = Converted ÷ Leads. Click any row to see its good leads and to scope the charts to it. Charts show, for each day, the trailing T-7 / T-14 / T-30 window ending that day, grouped by CRM created date; recent points are immature. Green/red on Good % = top/bottom third among rows meeting min leads. * = below min leads. No spend data, so no cost metrics. Uploads are read in your browser and shared with the whole team. Shared storage holds lead IDs, names, phone numbers, statuses, ad copy and tags, and is protected by the team password.</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
@@ -79,8 +79,8 @@ a=a.filter(r=>{const p=r.ph+'|'+r.ad_id;if(si.has(r.id)||sp.has(p))return false;
 const MS=['META_PAID','META','WHATSAPP_INSTA_ADS'],g={};
 c.forEach(r=>{const k=ph(r.Phone);(g[k]=g[k]||[]).push({...r,ca:tm(r['Created At'])})});
 const pick=r=>{const x=g[r.ph];if(!x)return null;let s=x.filter(y=>y.Campaign==r.campaign_name);if(!s.length)s=x.filter(y=>MS.includes(y.Source));if(!s.length)s=x;return s.reduce((p,q)=>q.ca>=p.ca?q:p)};
-const raw=[];a.forEach(r=>{const d=Math.max(0,tn-dn(r.t));if(d>60)return;const x=pick(r),s=x?x.Status:'NA',cd=!x?'N':s=='INTERESTED'?'I':s=='CONVERTED'?'C':'O';
-raw.push([d,String(r.campaign_name),String(r.adset_name),String(r.ad_name),cd,String(r.full_name),r.ph,r.t.toLocaleDateString('en-GB',{day:'2-digit',month:'short',timeZone:'Asia/Kolkata'}),s,x?String(x['Sub-status']):'',x?String(x.Owner):'',String(r.id).replace('l:',''),cd])});
+const raw=[];a.forEach(r=>{const x=pick(r),t=x&&!isNaN(x.ca)?x.ca:r.t,d=Math.max(0,tn-dn(t));if(d>60)return;const s=x?x.Status:'NA',cd=!x?'N':s=='INTERESTED'?'I':s=='CONVERTED'?'C':'O';
+raw.push([d,String(r.campaign_name),String(r.adset_name),String(r.ad_name),cd,String(r.full_name),r.ph,t.toLocaleDateString('en-GB',{day:'2-digit',month:'short',timeZone:'Asia/Kolkata'}),s,x?String(x['Sub-status']):'',x?String(x.Owner):'',String(r.id).replace('l:',''),cd])});
 const U=k=>{const u=[...new Set(raw.map(r=>r[k]))].sort();return[u,Object.fromEntries(u.map((v,i)=>[v,i]))]};
 const[C,ci]=U(1),[S,sj]=U(2),[A,ak]=U(3);
 raw.forEach(r=>PII[r[11]]=[r[5],r[6]]);
@@ -97,7 +97,7 @@ ch.forEach(c=>{c.data.labels=lab;c.update()});
 const sr=sel&&cur.find(o=>o.key==sel);$('sc').textContent='Charts: '+(sr?sr.name+' ('+L+')':'all Meta leads')+'. Each point is the trailing window ending that day.'}
 function pick(i){sel=cur[i].key;draw();$('dt').scrollIntoView({behavior:'smooth'})}
 function draw(){LR=[];const m={};let T={leads:0,i:0,c:0,na:0,fz:0};
-$('sub').textContent='Windows run back from '+new Date(today).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' by Meta lead-form date.';
+$('sub').textContent='Windows run back from '+new Date(today).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' by CRM created date (Meta lead-form date for leads not in the CRM).';
 D.R.forEach(r=>{if(r[0]>=W)return;const ca=D.C[r[1]],se=D.S[r[2]],ad=D.A[r[3]],key=KF(r);
 const o=m[key]||(m[key]={key,name:L=='BD'?key:L=='Campaign'?ca:L=='Ad set'?se:ad,sub:L=='BD'||L=='Campaign'?'':L=='Ad set'?ca:ca+' › '+se,leads:0,i:0,c:0});
 o.leads++;T.leads++;if(r[4]=='I'){o.i++;T.i++}if(r[4]=='C'){o.c++;T.c++}if(r[4]=='N')T.na++;if(G(r[4])&&!G(r[12]))T.fz++});
