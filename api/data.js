@@ -7,6 +7,7 @@ const init = () => ready || (ready = (async () => {
   await sql`create table if not exists ledger (id text primary key, c text)`;
   await sql`create table if not exists copy (k text primary key, v jsonb)`;
   await sql`create table if not exists revenue (id text primary key, amt numeric)`;
+  await sql`alter table revenue add column if not exists src text`;
   await sql`create table if not exists pii (id text primary key, n text, p text)`;
 })().catch(e => { ready = null; throw e; }));
 
@@ -52,13 +53,14 @@ module.exports = async (req, res) => {
         await sql`insert into kv (k, v) values ('spend', ${JSON.stringify(b.spend)}::jsonb) on conflict (k) do update set v = excluded.v`;
       if (b.rev) {
         if (Number(b.rev.amt) > 0)
-          await sql`insert into revenue (id, amt) values (${String(b.rev.id)}, ${Number(b.rev.amt)}) on conflict (id) do update set amt = excluded.amt`;
+          await sql`insert into revenue (id, amt, src) values (${String(b.rev.id)}, ${Number(b.rev.amt)}, 'manual') on conflict (id) do update set amt = excluded.amt, src = 'manual'`;
         else await sql`delete from revenue where id = ${String(b.rev.id)}`;
       }
       if (b.revBulk) {
         const ids = Object.keys(b.revBulk).filter(k => Number(b.revBulk[k]) > 0);
+        await sql`delete from revenue where src is distinct from 'manual'`;
         if (ids.length)
-          await sql`insert into revenue (id, amt) select * from unnest(${ids}::text[], ${ids.map(k => Number(b.revBulk[k]))}::numeric[]) on conflict (id) do update set amt = excluded.amt`;
+          await sql`insert into revenue (id, amt, src) select i, a, 'file' from unnest(${ids}::text[], ${ids.map(k => Number(b.revBulk[k]))}::numeric[]) as t(i, a) on conflict (id) do nothing`;
       }
       if (b.copy)
         await sql`insert into copy (k, v) values (${b.copy.k}, ${JSON.stringify(b.copy.v)}::jsonb) on conflict (k) do update set v = excluded.v`;
