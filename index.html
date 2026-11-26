@@ -81,7 +81,7 @@ const bulk={};let mp=0,tot=0,hit=0,miss=0,missAmt=0;
 Object.entries(byP).forEach(([p,a])=>{if(a<=0)return;tot+=a;if(lead[p]){mp++;hit+=a;bulk[lead[p][1]]=(bulk[lead[p][1]]||0)+a}else{miss++;missAmt+=a}});
 if(!mp)throw new Error('no phone numbers matched your leads. Re-upload the Meta live sheet and lead dump once so phone numbers are saved, then try again.');
 await api('POST',{revBulk:bulk});await load();
-$('rn').textContent=`Used columns "${T.ph}" and "${T.am}". Matched ${inr(hit)} of ${inr(tot)} to ${mp} leads. ${miss} phone numbers (${inr(missAmt)}) were not found in your leads.`}catch(e){$('rn').textContent='Revenue upload failed: '+e.message}}
+$('rn').textContent=`Used columns "${T.ph}" and "${T.am}". Matched ${inr(hit)} of ${inr(tot)} to ${mp} leads. Ignored ${miss} other phone numbers that aren't Meta leads.`}catch(e){$('rn').textContent='Revenue upload failed: '+e.message}}
 async function upSpend(f){if(!f)return;$('sn').textContent='Processing…';try{
 const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}),sn=wb.SheetNames.find(n=>/raw/i.test(n))||wb.SheetNames[0],AR=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
 const lc=c=>String(c).trim().toLowerCase(),hi=AR.findIndex(r=>r.some(c=>lc(c)=='campaign name')&&r.some(c=>lc(c).startsWith('amount spent')));
