@@ -68,23 +68,26 @@ $('rt').innerHTML='<tr>'+cols.map(c=>`<th onclick="rsort('${c[0]}')">${c[1]}${RS
 return`<tr><td>${esc(o.name)}<small>${esc(o.sub)}</small></td><td>${inr(o.spend)}</td><td>${lk(o.leads,sc,'leads',o.name)}</td><td>${c(o.cpl)}</td><td>${lk(o.good,sc,'good',o.name)}</td><td>${c(o.cpg)}</td><td>${lk(o.conv,sc,'c',o.name)}</td><td>${c(o.cpc)}</td><td>${lk(inr(o.rev),sc,'c',o.name)}</td><td style="background:${bg}">${o.roas==null?'—':o.roas.toFixed(2)+'x'}${ok?'':' *'}</td><td>${o.imps.toLocaleString('en-IN')}</td><td>${o.ctr==null?'—':o.ctr.toFixed(2)+'%'}</td><td>${c(o.cpm)}</td></tr>`}).join('');
 $('ll').innerHTML=leadPanel()}
 async function upSpend(f){if(!f)return;$('sn').textContent='Processing…';try{
-const rows=await rd(f),H=rows.length?Object.keys(rows[0]):[];
+const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}),sn=wb.SheetNames.find(n=>/raw/i.test(n))||wb.SheetNames[0],AR=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
+const lc=c=>String(c).trim().toLowerCase(),hi=AR.findIndex(r=>r.some(c=>lc(c)=='campaign name')&&r.some(c=>lc(c).startsWith('amount spent')));
+if(hi<0)throw new Error('could not find a header row with Campaign name and Amount spent.');
+const HH=AR[hi].map(c=>String(c).trim()),H=HH.filter(Boolean),rows=AR.slice(hi+1).map(r=>{const o={};HH.forEach((h,i)=>{if(h)o[h]=r[i]});return o});
 const fd=(...ps)=>{for(const p of ps){const k=H.find(h=>h.trim().toLowerCase()==p);if(k)return k}for(const p of ps){const k=H.find(h=>h.trim().toLowerCase().startsWith(p));if(k)return k}return null};
 const kd=fd('day','date','reporting starts'),kc=fd('campaign name'),ks=fd('ad set name'),ka=fd('ad name'),ksp=fd('amount spent'),ki=fd('impressions'),kl=fd('link clicks','clicks (all)','clicks');
 const miss=[['Day',kd],['Campaign name',kc],['Ad set name',ks],['Ad name',ka],['Amount spent',ksp]].filter(x=>!x[1]).map(x=>x[0]);
 if(miss.length)throw new Error('missing column(s): '+miss.join(', ')+'. Export a day-wise, ad-level report.');
 const num=v=>parseFloat(String(v).replace(/[^0-9.\-]/g,''))||0,pd=v=>{const t=typeof v=='number'?new Date(Math.round((v-25569)*864e5)):new Date(v);return isNaN(t)?null:dnum(t.getTime())};
 const nm=new Map();
-rows.forEach(r=>{const d=pd(r[kd]);if(d==null)return;const c=String(r[kc]).trim(),s=String(r[ks]).trim(),a=String(r[ka]).trim();if(!c||!a)return;const k=d+'|'+c+'|'+s+'|'+a,x=nm.get(k)||[d,c,s,a,0,0,0];x[4]+=num(r[ksp]);x[5]+=ki?num(r[ki]):0;x[6]+=kl?num(r[kl]):0;nm.set(k,x)});
+rows.forEach(r=>{const d=pd(r[kd]);if(d==null)return;const c=String(r[kc]).trim(),s=String(r[ks]).trim(),a=String(r[ka]).trim();if(!c||!a||c=='All'||s=='All'||a=='All')return;const k=d+'|'+c+'|'+s+'|'+a,x=nm.get(k)||[d,c,s,a,0,0,0];x[4]+=num(r[ksp]);x[5]+=ki?num(r[ki]):0;x[6]+=kl?num(r[kl]):0;nm.set(k,x)});
 if(!nm.size)throw new Error('no usable rows found.');
 const ex=new Map();SPD.R.forEach(x=>{const e=[x[0],SPD.C[x[1]],SPD.S[x[2]],SPD.A[x[3]],x[4],x[5],x[6]];ex.set(e[0]+'|'+e[1]+'|'+e[2]+'|'+e[3],e)});
-nm.forEach((v,k)=>ex.set(k,v));
+nm.forEach((v,k)=>{const e=ex.get(k);if(e){if(!ki)v[5]=e[5];if(!kl)v[6]=e[6]}ex.set(k,v)});
 const cut=dnum(Date.now())-120,rr=[...ex.values()].filter(x=>x[0]>=cut);
 const idx=j=>{const u=[...new Set(rr.map(x=>x[j]))];return[u,Object.fromEntries(u.map((v,i)=>[v,i]))]};
 const[C,ci]=idx(1),[S,sj]=idx(2),[A,ak]=idx(3);
 const R=rr.map(x=>[x[0],ci[x[1]],sj[x[2]],ak[x[3]],+x[4].toFixed(2),x[5],x[6]]);
 await api('POST',{spend:{C,S,A,R}});await load();
-$('sn').textContent=nm.size+' ad-day rows loaded (clicks column: '+(kl||'none')+').'}catch(e){$('sn').textContent='Spend upload failed: '+e.message}}
+$('sn').textContent=nm.size+' ad-day rows loaded from "'+sn+'".'+(ki&&kl?' Clicks column: '+kl+'.':' No Impressions / Link clicks columns in this file, so CTR and CPM stay blank. Add them in Ads Manager (Columns) and upload again.')}catch(e){$('sn').textContent='Spend upload failed: '+e.message}}
 const TK=r=>D.C[r[1]]+'|'+D.S[r[2]]+'|'+D.A[r[3]];
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const note=t=>$('nt').textContent=t;
