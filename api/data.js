@@ -8,6 +8,7 @@ const init = () => ready || (ready = (async () => {
   await sql`create table if not exists copy (k text primary key, v jsonb)`;
   await sql`create table if not exists revenue (id text primary key, amt numeric)`;
   await sql`alter table revenue add column if not exists src text`;
+  await sql`create table if not exists visited (id text primary key, src text)`;
   await sql`create table if not exists pii (id text primary key, n text, p text)`;
 })().catch(e => { ready = null; throw e; }));
 
@@ -21,6 +22,9 @@ module.exports = async (req, res) => {
       const led = await sql`select id, c from ledger`;
       const cp = await sql`select k, v from copy`;
       const pi = await sql`select id, n, p from pii`;
+      const vi = await sql`select id, src from visited`;
+      const vis = {};
+      vi.forEach(x => (vis[x.id] = x.src));
       const rv = await sql`select id, amt from revenue`;
       const o = {}, ledger = {}, copy = {}, pii = {}, rev = {};
       rv.forEach(x => (rev[x.id] = Number(x.amt)));
@@ -28,7 +32,7 @@ module.exports = async (req, res) => {
       kv.forEach(x => (o[x.k] = x.v));
       led.forEach(x => (ledger[x.id] = x.c));
       cp.forEach(x => (copy[x.k] = x.v));
-      return res.json({ ...(o.data || {}), ledger, copy, pii, rev, spend: o.spend || null, updated: o.updated || 0 });
+      return res.json({ ...(o.data || {}), ledger, copy, pii, rev, vis, spend: o.spend || null, updated: o.updated || 0 });
     }
     if (req.method === 'POST') {
       const b = req.body || {};
@@ -43,6 +47,10 @@ module.exports = async (req, res) => {
         });
         if (ids.length)
           await sql`insert into ledger (id, c) select * from unnest(${ids}::text[], ${cs}::text[]) on conflict (id) do update set c = excluded.c`;
+        const norm = s => String(s || '').toUpperCase().replace(/[_\s]+/g, ' ').trim();
+        const vids = b.R.filter(x => x[12] === 'C' && norm(x[9]) === 'OPD VISITED').map(x => String(x[11]));
+        if (vids.length)
+          await sql`insert into visited (id, src) select i, 'auto' from unnest(${vids}::text[]) as t(i) on conflict (id) do nothing`;
         const pk = Object.keys(b.pii || {});
         if (pk.length)
           await sql`insert into pii (id, n, p) select * from unnest(${pk}::text[], ${pk.map(k => String(b.pii[k][0] || ''))}::text[], ${pk.map(k => String(b.pii[k][1] || ''))}::text[]) on conflict (id) do update set n = excluded.n, p = excluded.p`;
@@ -56,6 +64,8 @@ module.exports = async (req, res) => {
           await sql`insert into revenue (id, amt, src) values (${String(b.rev.id)}, ${Number(b.rev.amt)}, 'manual') on conflict (id) do update set amt = excluded.amt, src = 'manual'`;
         else await sql`delete from revenue where id = ${String(b.rev.id)}`;
       }
+      if (b.vis)
+        await sql`insert into visited (id, src) values (${String(b.vis.id)}, ${b.vis.v === 'off' ? 'off' : 'manual'}) on conflict (id) do update set src = excluded.src`;
       if (b.revBulk) {
         const ids = Object.keys(b.revBulk).filter(k => Number(b.revBulk[k]) > 0);
         await sql`delete from revenue where src is distinct from 'manual'`;
