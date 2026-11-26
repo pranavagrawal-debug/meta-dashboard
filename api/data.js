@@ -6,6 +6,7 @@ const init = () => ready || (ready = (async () => {
   await sql`create table if not exists kv (k text primary key, v jsonb)`;
   await sql`create table if not exists ledger (id text primary key, c text)`;
   await sql`create table if not exists copy (k text primary key, v jsonb)`;
+  await sql`create table if not exists revenue (id text primary key, amt numeric)`;
   await sql`create table if not exists pii (id text primary key, n text, p text)`;
 })().catch(e => { ready = null; throw e; }));
 
@@ -19,12 +20,14 @@ module.exports = async (req, res) => {
       const led = await sql`select id, c from ledger`;
       const cp = await sql`select k, v from copy`;
       const pi = await sql`select id, n, p from pii`;
-      const o = {}, ledger = {}, copy = {}, pii = {};
+      const rv = await sql`select id, amt from revenue`;
+      const o = {}, ledger = {}, copy = {}, pii = {}, rev = {};
+      rv.forEach(x => (rev[x.id] = Number(x.amt)));
       pi.forEach(x => (pii[x.id] = [x.n, x.p]));
       kv.forEach(x => (o[x.k] = x.v));
       led.forEach(x => (ledger[x.id] = x.c));
       cp.forEach(x => (copy[x.k] = x.v));
-      return res.json({ ...(o.data || {}), ledger, copy, pii, updated: o.updated || 0 });
+      return res.json({ ...(o.data || {}), ledger, copy, pii, rev, spend: o.spend || null, updated: o.updated || 0 });
     }
     if (req.method === 'POST') {
       const b = req.body || {};
@@ -44,6 +47,13 @@ module.exports = async (req, res) => {
           await sql`insert into pii (id, n, p) select * from unnest(${pk}::text[], ${pk.map(k => String(b.pii[k][0] || ''))}::text[], ${pk.map(k => String(b.pii[k][1] || ''))}::text[]) on conflict (id) do update set n = excluded.n, p = excluded.p`;
         await sql`insert into kv (k, v) values ('data', ${JSON.stringify({ C: b.C, S: b.S, A: b.A, R: b.R })}::jsonb) on conflict (k) do update set v = excluded.v`;
         await sql`insert into kv (k, v) values ('updated', ${JSON.stringify(Date.now())}::jsonb) on conflict (k) do update set v = excluded.v`;
+      }
+      if (b.spend)
+        await sql`insert into kv (k, v) values ('spend', ${JSON.stringify(b.spend)}::jsonb) on conflict (k) do update set v = excluded.v`;
+      if (b.rev) {
+        if (Number(b.rev.amt) > 0)
+          await sql`insert into revenue (id, amt) values (${String(b.rev.id)}, ${Number(b.rev.amt)}) on conflict (id) do update set amt = excluded.amt`;
+        else await sql`delete from revenue where id = ${String(b.rev.id)}`;
       }
       if (b.copy)
         await sql`insert into copy (k, v) values (${b.copy.k}, ${JSON.stringify(b.copy.v)}::jsonb) on conflict (k) do update set v = excluded.v`;
