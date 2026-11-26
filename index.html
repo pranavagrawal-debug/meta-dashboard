@@ -63,7 +63,7 @@ const a=Object.values(m).map(fin).filter(o=>(o.name+o.sub).toLowerCase().include
 const T=fin(Object.values(m).reduce((t,o)=>{['spend','imps','clk','leads','good','conv','rev'].forEach(f=>t[f]+=o[f]);return t},{spend:0,imps:0,clk:0,leads:0,good:0,conv:0,rev:0}));
 const all=r=>true;
 $('rk').innerHTML=[[inr(T.spend),'Spend'],[lk(inr(T.rev),all,'c','All Meta leads'),'Revenue'],[T.roas==null?'—':T.roas.toFixed(2)+'x','ROAS'],[lk(T.leads,all,'leads','All Meta leads'),'Leads'],[T.cpl==null?'—':inr(T.cpl),'Cost per lead'],[T.cpg==null?'—':inr(T.cpg),'Cost per good lead'],[T.cpc==null?'—':inr(T.cpc),'Cost per converted'],[T.imps.toLocaleString('en-IN'),'Impressions'],[T.ctr==null?'—':T.ctr.toFixed(2)+'%','CTR'],[T.cpm==null?'—':inr(T.cpm),'CPM']].map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
-const cols=[['name',lv],['spend','Spend'],['leads','Leads'],['cpl','Cost / lead'],['good','Good'],['cpg','Cost / good'],['conv','Converted'],['cpc','Cost / converted'],['rev','Revenue'],['roas','ROAS'],['imps','Impressions'],['ctr','CTR'],['cpm','CPM']];
+const cols=[['name',lv],['spend','Spend'],['leads','Leads'],['cpl','Cost / lead'],['good','Good'],['cpg','Cost / good'],['conv','Converted'],['cpc','Cost / converted'],['rev','Revenue'],['roas','ROAS'],['imps','Impressions'],['ctr',SPD.ac?'CTR (approx.)':'CTR'],['cpm','CPM']];
 $('rt').innerHTML='<tr>'+cols.map(c=>`<th onclick="rsort('${c[0]}')">${c[1]}${RS==c[0]?(RD<0?' ↓':' ↑'):''}</th>`).join('')+'</tr>'+a.map(o=>{const sc=r=>kf(D.C[r[1]],D.S[r[2]],D.A[r[3]])==o.k,ok=o.leads>=mn,bg=ok&&o.spend?(o.roas>=1?'var(--g)':'var(--r)'):'',c=(v)=>v==null?'—':inr(v);
 return`<tr><td>${esc(o.name)}<small>${esc(o.sub)}</small></td><td>${inr(o.spend)}</td><td>${lk(o.leads,sc,'leads',o.name)}</td><td>${c(o.cpl)}</td><td>${lk(o.good,sc,'good',o.name)}</td><td>${c(o.cpg)}</td><td>${lk(o.conv,sc,'c',o.name)}</td><td>${c(o.cpc)}</td><td>${lk(inr(o.rev),sc,'c',o.name)}</td><td style="background:${bg}">${o.roas==null?'—':o.roas.toFixed(2)+'x'}${ok?'':' *'}</td><td>${o.imps.toLocaleString('en-IN')}</td><td>${o.ctr==null?'—':o.ctr.toFixed(2)+'%'}</td><td>${c(o.cpm)}</td></tr>`}).join('');
 $('ll').innerHTML=leadPanel()}
@@ -88,21 +88,21 @@ const lc=c=>String(c).trim().toLowerCase(),hi=AR.findIndex(r=>r.some(c=>lc(c)=='
 if(hi<0)throw new Error('could not find a header row with Campaign name and Amount spent.');
 const HH=AR[hi].map(c=>String(c).trim()),H=HH.filter(Boolean),rows=AR.slice(hi+1).map(r=>{const o={};HH.forEach((h,i)=>{if(h)o[h]=r[i]});return o});
 const fd=(...ps)=>{for(const p of ps){const k=H.find(h=>h.trim().toLowerCase()==p);if(k)return k}for(const p of ps){const k=H.find(h=>h.trim().toLowerCase().startsWith(p));if(k)return k}return null};
-const kd=fd('day','date','reporting starts'),kc=fd('campaign name'),ks=fd('ad set name'),ka=fd('ad name'),ksp=fd('amount spent'),ki=fd('impressions'),kl=fd('link clicks','clicks (all)','clicks');
+const kd=fd('day','date','reporting starts'),kc=fd('campaign name'),ks=fd('ad set name'),ka=fd('ad name'),ksp=fd('amount spent'),ki=fd('impressions'),kl=fd('link clicks','clicks (all)','clicks'),kcpm=fd('cpm'),kctr=fd('unique ctr','ctr (link','ctr (all)','ctr');
 const miss=[['Day',kd],['Campaign name',kc],['Ad set name',ks],['Ad name',ka],['Amount spent',ksp]].filter(x=>!x[1]).map(x=>x[0]);
 if(miss.length)throw new Error('missing column(s): '+miss.join(', ')+'. Export a day-wise, ad-level report.');
 const num=v=>parseFloat(String(v).replace(/[^0-9.\-]/g,''))||0,pd=v=>{const t=typeof v=='number'?new Date(Math.round((v-25569)*864e5)):new Date(v);return isNaN(t)?null:dnum(t.getTime())};
 const nm=new Map();
-rows.forEach(r=>{const d=pd(r[kd]);if(d==null)return;const c=String(r[kc]).trim(),s=String(r[ks]).trim(),a=String(r[ka]).trim();if(!c||!a||c=='All'||s=='All'||a=='All')return;const k=d+'|'+c+'|'+s+'|'+a,x=nm.get(k)||[d,c,s,a,0,0,0];x[4]+=num(r[ksp]);x[5]+=ki?num(r[ki]):0;x[6]+=kl?num(r[kl]):0;nm.set(k,x)});
+rows.forEach(r=>{const d=pd(r[kd]);if(d==null)return;const c=String(r[kc]).trim(),s=String(r[ks]).trim(),a=String(r[ka]).trim();if(!c||!a||c=='All'||s=='All'||a=='All')return;const k=d+'|'+c+'|'+s+'|'+a,x=nm.get(k)||[d,c,s,a,0,0,0];x[4]+=num(r[ksp]);const sp=num(r[ksp]),cm=kcpm?num(r[kcpm]):0,im=ki?num(r[ki]):cm>0?sp/cm*1000:0;x[5]+=im;x[6]+=kl?num(r[kl]):kctr?im*num(r[kctr])/100:0;nm.set(k,x)});
 if(!nm.size)throw new Error('no usable rows found.');
 const ex=new Map();SPD.R.forEach(x=>{const e=[x[0],SPD.C[x[1]],SPD.S[x[2]],SPD.A[x[3]],x[4],x[5],x[6]];ex.set(e[0]+'|'+e[1]+'|'+e[2]+'|'+e[3],e)});
-nm.forEach((v,k)=>{const e=ex.get(k);if(e){if(!ki)v[5]=e[5];if(!kl)v[6]=e[6]}ex.set(k,v)});
+nm.forEach((v,k)=>{const e=ex.get(k);if(e){if(!ki&&!kcpm)v[5]=e[5];if(!kl&&!kctr)v[6]=e[6]}ex.set(k,v)});
 const cut=dnum(Date.now())-400,rr=[...ex.values()].filter(x=>x[0]>=cut);
 const idx=j=>{const u=[...new Set(rr.map(x=>x[j]))];return[u,Object.fromEntries(u.map((v,i)=>[v,i]))]};
 const[C,ci]=idx(1),[S,sj]=idx(2),[A,ak]=idx(3);
 const R=rr.map(x=>[x[0],ci[x[1]],sj[x[2]],ak[x[3]],+x[4].toFixed(2),x[5],x[6]]);
-await api('POST',{spend:{C,S,A,R}});await load();
-$('sn').textContent=nm.size+' ad-day rows loaded from "'+sn+'".'+(ki&&kl?' Clicks column: '+kl+'.':' No Impressions / Link clicks columns in this file, so CTR and CPM stay blank. Add them in Ads Manager (Columns) and upload again.')}catch(e){$('sn').textContent='Spend upload failed: '+e.message}}
+const ac=!kl&&!!kctr&&/unique/i.test(kctr);await api('POST',{spend:{C,S,A,R,ac:ac||(!kl&&!kctr&&SPD.ac)}});await load();
+$('sn').textContent=nm.size+' ad-day rows loaded from "'+sn+'".'+((ki||kcpm)&&(kl||kctr)?' Impressions from '+(ki?'"'+ki+'"':'CPM')+', clicks from '+(kl?'"'+kl+'"':'"'+kctr+'"')+'.'+(!kl&&/unique/i.test(kctr||'')?' CTR is approximate because the file has Unique CTR; add Impressions and Link clicks columns for exact CTR.':''):' This file has no CPM/Impressions or CTR/Link clicks columns, so CTR and CPM stay blank.')}catch(e){$('sn').textContent='Spend upload failed: '+e.message}}
 const TK=r=>D.C[r[1]]+'|'+D.S[r[2]]+'|'+D.A[r[3]];
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const note=t=>$('nt').textContent=t;
