@@ -22,7 +22,7 @@ a.lk{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}a
 <h1>Meta performance: good leads</h1>
 <div class="s" id="sub"></div>
 <div class="up" id="gt" style="display:none">Team password <input id="pw" type="password" onkeydown="if(event.key=='Enter')login()"><button onclick="login()">Open</button></div>
-<div class="up"><label>Meta live sheet (.xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('m',this.files[0])"></label><label>Lead dump (.csv / .xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('c',this.files[0])"></label><span id="nt"></span></div>
+<div class="up"><label>Meta live sheet (.xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('m',this.files[0])"></label><label>Meta live sheet, BR (optional) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('b',this.files[0])"></label><label>Lead dump (.csv / .xlsx) <input type="file" accept=".xlsx,.xls,.csv" onchange="up('c',this.files[0])"></label><span id="nt"></span></div>
 <div class="bar"><button id="tab1" class="on" onclick="setTab(0)">Campaign wise</button><button id="tab2" onclick="setTab(1)">BD wise</button><button id="tab3" onclick="setTab(2)">Facebook vs Instagram</button><button id="tab4" onclick="setTab(3)">ROAS</button><button id="tab5" onclick="setTab(4)">Refresh list</button></div>
 <div class="bar"><span id="wb"></span><span id="lb"></span><label>Min leads <input id="mn" type="number" value="10" min="0"></label><input id="q" placeholder="Filter rows by name" style="width:150px"><input id="ps" placeholder="Find lead by phone or name" style="width:190px" oninput="findLead()"><label id="utl" style="display:none"><input type="checkbox" id="ut" style="width:auto" onchange="draw()"> Untagged ads only</label><span id="tc" class="s" style="margin:0"></span></div>
 <div id="ll"></div>
@@ -182,8 +182,8 @@ return`<div class="dp"><div style="display:flex;justify-content:space-between;ga
 return`<tr><td>${esc(x.ad)}</td><td>${esc(x.se)}</td><td>${esc(x.ca)}</td>${cost?`<td>${inr(x.sp)}</td>`:''}<td>${ln(x.n,'leads')}</td>${cost?`<td>${C(x.n&&x.sp?x.sp/x.n:null)}</td>`:''}<td>${ln(x.i,'i')}</td><td>${ln(x.c,'c')}</td>${cost?`<td>${C(x.c&&x.sp?x.sp/x.c:null)}</td><td>${C(g&&x.sp?x.sp/g:null)}</td><td>${C(x.v&&x.sp?x.sp/x.v:null)}</td>`:''}<td>${ln(pc(g,x.n),'good')}</td><td>${ln(pc(x.c,x.n),'c')}</td><td>${ln(pc(x.v,x.n),'v')}</td></tr>`}).join('')+'</table></div></div>'}
 async function rd(f){const w=XLSX.read(await f.arrayBuffer(),{type:'array'});return w.SheetNames.flatMap(s=>XLSX.utils.sheet_to_json(w.Sheets[s],{defval:''}))}
 async function up(k,f){F[k]=f;if(F.m&&F.c)await run()}
-async function run(){note('Processing…');try{
-const m=await rd(F.m),c=await rd(F.c);
+async function run(){note('Processing…'+(F.b?' (main + BR sheets)':''));try{
+const m=[...await rd(F.m),...(F.b?await rd(F.b):[])],c=await rd(F.c);
 const tm=v=>v instanceof Date?v:typeof v=='number'?new Date(Math.round((v-25569)*864e5)):new Date(v);
 const ph=s=>String(s).replace(/\D/g,'').slice(-10),dn=t=>Math.floor((t.getTime()+19800000)/864e5),tn=dn(new Date());
 let a=m.filter(r=>String(r.id).startsWith('l:')).map(r=>({...r,t:tm(r.created_time),ph:ph(r.phone_number)})).filter(r=>!isNaN(r.t));
