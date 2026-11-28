@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
       kv.forEach(x => (o[x.k] = x.v));
       led.forEach(x => (ledger[x.id] = x.c));
       cp.forEach(x => (copy[x.k] = x.v));
-      return res.json({ ...(o.data || {}), ledger, copy, pii, rev, vis, spend: o.spend || null, rules: o.rules || null, updated: o.updated || 0 });
+      return res.json({ ...(o.data || {}), ledger, copy, pii, rev, vis, spend: o.spend || null, rules: o.rules || null, changes: o.changes || [], updated: o.updated || 0 });
     }
     if (req.method === 'POST') {
       const b = req.body || {};
@@ -61,6 +61,8 @@ module.exports = async (req, res) => {
         await sql`insert into kv (k, v) values ('spend', ${JSON.stringify(b.spend)}::jsonb) on conflict (k) do update set v = excluded.v`;
       if (b.rules)
         await sql`insert into kv (k, v) values ('rules', ${JSON.stringify(b.rules)}::jsonb) on conflict (k) do update set v = excluded.v`;
+      if (b.changes)
+        await sql`insert into kv (k, v) values ('changes', ${JSON.stringify(b.changes)}::jsonb) on conflict (k) do update set v = excluded.v`;
       if (b.rev) {
         if (Number(b.rev.amt) > 0)
           await sql`insert into revenue (id, amt, src) values (${String(b.rev.id)}, ${Number(b.rev.amt)}, 'manual') on conflict (id) do update set amt = excluded.amt, src = 'manual'`;
